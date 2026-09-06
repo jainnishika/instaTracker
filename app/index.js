@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -23,6 +24,7 @@ export default function Login() {
     email: "",
     password: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -93,15 +95,28 @@ export default function Login() {
         {/* Password */}
         <Text style={styles.label}>Password</Text>
 
-        <TextInput
-          placeholder="Enter your password"
-          placeholderTextColor="#888"
-          secureTextEntry
-          autoCapitalize="none"
-          value={data.password}
-          onChangeText={(t) => setData({ ...data, password: t })}
-          style={styles.input}
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            placeholder="Enter your password"
+            placeholderTextColor="#888"
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            value={data.password}
+            onChangeText={(t) => setData({ ...data, password: t })}
+            style={styles.passwordInput}
+          />
+
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeButton}
+          >
+            <Ionicons
+              name={showPassword ? "eye-outline" : "eye-off-outline"}
+              size={22}
+              color="#888"
+            />
+          </TouchableOpacity>
+        </View>
 
         {/* Login Button */}
         <TouchableOpacity
@@ -226,6 +241,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginHorizontal: 12,
     fontWeight: "600",
+  },
+  passwordContainer: {
+    position: "relative",
+    marginBottom: 18,
+  },
+
+  passwordInput: {
+    backgroundColor: "#242424",
+    color: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#333333",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingRight: 50,
+    fontSize: 15,
+  },
+
+  eyeButton: {
+    position: "absolute",
+    right: 15,
+    top: 14,
   },
 
   signupContainer: {

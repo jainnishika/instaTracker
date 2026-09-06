@@ -1,4 +1,5 @@
 import * as DocumentPicker from "expo-document-picker";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
@@ -12,6 +13,7 @@ import {
 } from "react-native";
 
 export default function Dashboard() {
+  const router = useRouter();
   const { width } = useWindowDimensions();
 
   const [followersFile, setFollowersFile] = useState("");
@@ -20,37 +22,33 @@ export default function Dashboard() {
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
 
-  // People you follow but who don't follow you back
   const [notBack, setNotBack] = useState([]);
-
   const [search, setSearch] = useState("");
   const [analyzed, setAnalyzed] = useState(false);
 
   const isDesktop = width > 700;
 
-  // CLEAN USERNAME
+  // Clean username
   const clean = (name) =>
     String(name || "")
       .toLowerCase()
       .trim()
       .replace(/^@/, "");
 
-  // UNIVERSAL INSTAGRAM JSON PARSER
+  // Extract usernames from Instagram JSON
   const extractUsers = (json) => {
     const found = new Set();
 
     const visit = (node) => {
       if (!node) return;
 
-      // If array, check every item
       if (Array.isArray(node)) {
         node.forEach(visit);
         return;
       }
 
-      // If object
       if (typeof node === "object") {
-        // Common Instagram JSON format
+        // Instagram common format
         if (Array.isArray(node.string_list_data)) {
           node.string_list_data.forEach((item) => {
             if (item?.value) {
@@ -59,7 +57,7 @@ export default function Dashboard() {
           });
         }
 
-        // Other possible username formats
+        // Other possible formats
         if (typeof node.title === "string") {
           found.add(clean(node.title));
         }
@@ -68,7 +66,7 @@ export default function Dashboard() {
           found.add(clean(node.username));
         }
 
-        // Recursively check nested data
+        // Check nested objects
         Object.values(node).forEach(visit);
       }
     };
@@ -78,7 +76,7 @@ export default function Dashboard() {
     return [...found].filter(Boolean);
   };
 
-  // PICK FOLLOWERS FILE
+  // Upload followers file
   const pickFollowers = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -89,30 +87,28 @@ export default function Dashboard() {
       if (!result.canceled) {
         const file = result.assets[0];
 
-        setFollowersFile(file.name);
-
         const response = await fetch(file.uri);
         const json = await response.json();
 
         const users = extractUsers(json);
 
-        console.log("Followers:", users.length);
-
+        setFollowersFile(file.name);
         setFollowers(users);
+
         setNotBack([]);
         setAnalyzed(false);
       }
     } catch (error) {
-      console.log("Followers upload error:", error);
+      console.log(error);
 
       Alert.alert(
         "Upload Failed",
-        "Please select a valid followers JSON file.",
+        "Please select a valid Followers JSON file.",
       );
     }
   };
 
-  // PICK FOLLOWING FILE
+  // Upload following file
   const pickFollowing = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -123,30 +119,28 @@ export default function Dashboard() {
       if (!result.canceled) {
         const file = result.assets[0];
 
-        setFollowingFile(file.name);
-
         const response = await fetch(file.uri);
         const json = await response.json();
 
         const users = extractUsers(json);
 
-        console.log("Following:", users.length);
-
+        setFollowingFile(file.name);
         setFollowing(users);
+
         setNotBack([]);
         setAnalyzed(false);
       }
     } catch (error) {
-      console.log("Following upload error:", error);
+      console.log(error);
 
       Alert.alert(
         "Upload Failed",
-        "Please select a valid following JSON file.",
+        "Please select a valid Following JSON file.",
       );
     }
   };
 
-  // ANALYZE
+  // Analyze people you follow who don't follow you back
   const analyze = () => {
     if (!followersFile || !followingFile) {
       Alert.alert(
@@ -156,28 +150,37 @@ export default function Dashboard() {
       return;
     }
 
-    // Convert followers array into a Set
     const followersSet = new Set(followers);
 
-    // Find people YOU follow who are NOT in your followers list
     const result = following.filter((user) => !followersSet.has(user));
 
     setNotBack(result);
     setAnalyzed(true);
   };
 
-  // RESET EVERYTHING
+  // Clear all uploaded data
   const reset = () => {
     setFollowersFile("");
     setFollowingFile("");
+
     setFollowers([]);
     setFollowing([]);
+
     setNotBack([]);
     setSearch("");
     setAnalyzed(false);
   };
 
-  // SEARCH FILTER
+  // Logout
+  const logout = () => {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("token");
+    }
+
+    router.replace("/");
+  };
+
+  // Search filter
   const filtered = notBack.filter((user) =>
     user.includes(search.toLowerCase().trim()),
   );
@@ -188,10 +191,23 @@ export default function Dashboard() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* HEADER */}
-      <View style={styles.header}>
+      {/* TOP HEADER WITH LOGOUT */}
+
+      <View style={styles.topHeader}>
         <Text style={styles.logo}>InstaTrack</Text>
 
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={logout}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* MAIN HEADER */}
+
+      <View style={styles.header}>
         <Text style={styles.title}>Instagram Follower Analyzer</Text>
 
         <Text style={styles.subtitle}>
@@ -201,6 +217,7 @@ export default function Dashboard() {
       </View>
 
       {/* STATISTICS */}
+
       <View style={[styles.statsContainer, isDesktop && styles.statsDesktop]}>
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{followers.length}</Text>
@@ -222,8 +239,10 @@ export default function Dashboard() {
       </View>
 
       {/* UPLOAD SECTION */}
+
       <View style={[styles.uploadSection, isDesktop && styles.uploadDesktop]}>
         {/* FOLLOWERS */}
+
         <View style={styles.uploadCard}>
           <Text style={styles.uploadIcon}>👥</Text>
 
@@ -245,6 +264,7 @@ export default function Dashboard() {
         </View>
 
         {/* FOLLOWING */}
+
         <View style={styles.uploadCard}>
           <Text style={styles.uploadIcon}>👤</Text>
 
@@ -267,6 +287,7 @@ export default function Dashboard() {
       </View>
 
       {/* ANALYZE BUTTON */}
+
       <TouchableOpacity
         style={styles.analyzeButton}
         onPress={analyze}
@@ -275,7 +296,8 @@ export default function Dashboard() {
         <Text style={styles.analyzeButtonText}>Analyze My Instagram</Text>
       </TouchableOpacity>
 
-      {/* RESET BUTTON */}
+      {/* CLEAR DATA */}
+
       {(followers.length > 0 || following.length > 0) && (
         <TouchableOpacity style={styles.resetButton} onPress={reset}>
           <Text style={styles.resetText}>Clear All Data</Text>
@@ -283,6 +305,7 @@ export default function Dashboard() {
       )}
 
       {/* BEFORE ANALYSIS */}
+
       {!analyzed && followers.length > 0 && following.length > 0 && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>🔍</Text>
@@ -296,6 +319,7 @@ export default function Dashboard() {
       )}
 
       {/* RESULTS */}
+
       {analyzed && notBack.length > 0 && (
         <View style={styles.resultsSection}>
           <Text style={styles.resultsTitle}>Not Following You Back</Text>
@@ -306,6 +330,7 @@ export default function Dashboard() {
           </Text>
 
           {/* SEARCH */}
+
           <TextInput
             style={styles.search}
             placeholder="Search username..."
@@ -313,9 +338,11 @@ export default function Dashboard() {
             value={search}
             onChangeText={setSearch}
             autoCapitalize="none"
+            autoCorrect={false}
           />
 
-          {/* USER RESULTS */}
+          {/* USERS */}
+
           {filtered.length > 0 ? (
             filtered.map((user, index) => (
               <View key={`${user}-${index}`} style={styles.userCard}>
@@ -341,6 +368,7 @@ export default function Dashboard() {
       )}
 
       {/* EVERYONE FOLLOWS BACK */}
+
       {analyzed && notBack.length === 0 && (
         <View style={styles.goodResult}>
           <Text style={styles.goodIcon}>🎉</Text>
@@ -370,17 +398,41 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
 
-  header: {
+  /* TOP HEADER */
+
+  topHeader: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 25,
-    marginBottom: 30,
+    marginTop: 15,
+    marginBottom: 35,
   },
 
   logo: {
     color: "#E1306C",
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: "bold",
-    marginBottom: 12,
+  },
+
+  logoutButton: {
+    backgroundColor: "#E1306C",
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+  },
+
+  logoutText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  /* HEADER */
+
+  header: {
+    alignItems: "center",
+    marginBottom: 30,
   },
 
   title: {
@@ -398,6 +450,8 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     maxWidth: 600,
   },
+
+  /* STATISTICS */
 
   statsContainer: {
     flexDirection: "row",
@@ -431,6 +485,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: "center",
   },
+
+  /* UPLOAD */
 
   uploadSection: {
     gap: 15,
@@ -498,6 +554,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 
+  /* BUTTONS */
+
   analyzeButton: {
     backgroundColor: "#E1306C",
     paddingVertical: 16,
@@ -521,6 +579,8 @@ const styles = StyleSheet.create({
     color: "#888",
     fontSize: 14,
   },
+
+  /* RESULTS */
 
   resultsSection: {
     marginTop: 35,
@@ -590,6 +650,8 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
+  /* EMPTY STATES */
+
   emptyState: {
     alignItems: "center",
     marginTop: 50,
@@ -622,6 +684,8 @@ const styles = StyleSheet.create({
   emptyText: {
     color: "#777",
   },
+
+  /* GOOD RESULT */
 
   goodResult: {
     alignItems: "center",
